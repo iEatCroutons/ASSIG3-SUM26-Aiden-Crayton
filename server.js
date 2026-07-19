@@ -110,12 +110,12 @@ app.get('/search', (req, res) => {
   const sql =
     `SELECT id, title, species, location FROM listings ` +
     `WHERE title LIKE ? OR species LIKE ? ` +
-    `ORDER BY ${sort}`;
+    `ORDER BY ${safeSort}`;
 
   let rows = [];
   let error = null;
   try {
-    rows = all(sql);
+    rows = all(sql, [`%${q}%`, `%${q}%`]);
   } catch (e) {
     error = e.message;
   }
