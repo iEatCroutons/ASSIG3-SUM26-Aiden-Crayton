@@ -1,4 +1,5 @@
-Fix 1: const sql = SELECT id, username FROM users  + WHERE username = '${username}' AND password = '${password}';
+Fix 1: 
+const sql = SELECT id, username FROM users  + WHERE username = '${username}' AND password = '${password}';
 
 Was vulnerable because it took the user's input and directly concatenates it into the SQL statement. The exploit submits the credentials: "' OR 1-1 --" as the username and anything as the password. The payload closes the original string, injected OR 1=1, and uses -- to comment the remainder of the query, including the password comparison. Since OR 1=1 always evaluates to true, the database returned a valid user record. The pasword section of the query was commented out, so a valid password was not needed. This ends up working as a valid login.
 
@@ -11,7 +12,8 @@ This fix prevents SQL injection at the login query, but SQL queries anywhere els
 
 
 
-Fix 2: const sql = SELECT id, title, species, location FROM listings  + WHERE title LIKE '%${q}%' OR species LIKE '%${q}%'  + ORDER BY ${sort};
+Fix 2: 
+const sql = SELECT id, title, species, location FROM listings  + WHERE title LIKE '%${q}%' OR species LIKE '%${q}%'  + ORDER BY ${sort};
 
 Was vulnerable because the search term was concatenated directly into the query, so an attacker could inject SQL instead of an expected string. This made it possible to add SQL statements, such as UNION SELECT, to retrieve data from database tables. The exploit uses the input: ' UNION SELECT 1, username, password, 4 FROM users -- This payload closes the LIKE string, appends UNION SELECT with four columns to match the original query, selected the username and password fields, then used -- to comment the rest of the query. This caused the database to combine the normal search results along with the confidential usernames and passwords of users.
 
@@ -31,7 +33,8 @@ This fix prevents SQL injection at the search query, but SQL queries anywhere el
 
 
 
-Fix 3: const heading = <h1>Search</h1><p class="note">Showing results for “${q}”</p>; const bodyErr = error ? <p class="error">Query error: ${error}</p> : '';
+Fix 3: 
+const heading = <h1>Search</h1><p class="note">Showing results for “${q}”</p>; const bodyErr = error ? <p class="error">Query error: ${error}</p> : '';
 
 Was vulnerable because the application didn't sanitize the search term, to the browser interpretted the HTML as actual content. This allowed the attacker to inject JavaScript elements to trigger a response, which executes an attack whenever a victim loads the page. The exploit uses the input: '<img src=x onerror=alert('Hello Bozo')>' The payload creats an image element with an invalid source, which causes an error that triggers the onerror element of the payload.
 
@@ -68,7 +71,8 @@ This prevents XSS in places where escapeHTML() is implemented, but does not prot
 
 
 
-Fix 5 Part A (No exploit file): res.setHeader('Set-Cookie', sid=${token}; Path=/);
+Fix 5 Part A (No exploit file):
+res.setHeader('Set-Cookie', sid=${token}; Path=/);
 
 Was vulnerable because the cookie was missing protections, such as HTTPOnly and SameSite. Without these protections, the session cookie is vulnerable to Javascript accessing the cookie through document.cookie and CSRF attacks if the browser attached the cookie to certain cross-site requests.
 
@@ -81,7 +85,8 @@ HttpOnly prevents client-side Javascript from accessing session cookies and Same
 This protects the session token from certain attacks, but does not protect against XSS or server-side session system attacks.
 
 
-Fix 5 Part B (No exploit file): The application did not set a Content-Security Policy header on responses. Without this the browser had no restrictions that prevent injected scripts or event handlers if an attack were successful. To fix, a middleware function was added near the top of the apps code so every response contains a CSP header:
+Fix 5 Part B (No exploit file):
+The application did not set a Content-Security Policy header on responses. Without this the browser had no restrictions that prevent injected scripts or event handlers if an attack were successful. To fix, a middleware function was added near the top of the apps code so every response contains a CSP header:
 
   app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'");
