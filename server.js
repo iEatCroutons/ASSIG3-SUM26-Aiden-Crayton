@@ -36,7 +36,15 @@ function parseCookies(req) {
   });
   return out;
 }
-
+function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+  
 function currentUser(req) {
   const sid = parseCookies(req).sid;
   return sid && sessions.has(sid) ? sessions.get(sid) : null;
@@ -107,18 +115,27 @@ app.get('/search', (req, res) => {
   // Fix idea: bind the search value with a "?" placeholder, and choose the
   //   ORDER BY expression from a fixed allow-list (you cannot bind an
   //   identifier the way you bind a value).
-  const sql =
-    `SELECT id, title, species, location FROM listings ` +
-    `WHERE title LIKE ? OR species LIKE ? ` +
-    `ORDER BY ${safeSort}`;
+  const allowedSorts = {
+  title: 'title',
+  species: 'species',
+  location: 'location',
+  id: 'id'
+};
 
-  let rows = [];
-  let error = null;
-  try {
-    rows = all(sql, [`%${q}%`, `%${q}%`]);
-  } catch (e) {
-    error = e.message;
-  }
+const safeSort = allowedSorts[sort] || 'title';
+
+const sql =
+  `SELECT id, title, species, location FROM listings ` +
+  `WHERE title LIKE ? OR species LIKE ? ` +
+  `ORDER BY ${safeSort}`;
+
+let rows = [];
+let error = null;
+try {
+  rows = all(sql, [`%${q}%`, `%${q}%`]);
+} catch (e) {
+  error = e.message;
+}
 
   const results = rows
     .map(
@@ -134,14 +151,7 @@ app.get('/search', (req, res) => {
   // The raw search term is echoed back into the HTML response, so whatever
   // the visitor typed is parsed by the browser as markup.
   // Fix idea: HTML-encode any untrusted value before it lands in the page.
-  function escapeHtml(value) {
-    return String(value)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
+  
 
   const heading = `<h1>Search</h1><p class="note">Showing results for “${escapeHtml(q)}”</p>`;
 
